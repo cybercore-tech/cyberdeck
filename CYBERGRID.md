@@ -1,6 +1,6 @@
 # CYBERGRID palettes — `core` branch
 
-This branch wires in the shared [`cybercore`](https://github.com/darkstardevx/cybercore)
+This branch wires in the shared [`cybercore`](https://github.com/cybercore-tech/cybercore)
 crate (schema **v2**) as a second theme source, alongside CYBERDECK's own
 file-based chooser (`/api/themes`). Nothing about the existing chooser changes.
 
