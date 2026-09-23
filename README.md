@@ -98,7 +98,7 @@ sudo pacman -Syu lshw pciutils usbutils lm_sensors iproute2
 
 ```bash
 # Clone the repository
-git clone https://github.com/darkstardevx/cyberdeck.git
+git clone https://github.com/cybercore-tech/cyberdeck.git
 cd cyberdeck
 
 # Run the panel (Opens @ 127.0.0.1:8080)
