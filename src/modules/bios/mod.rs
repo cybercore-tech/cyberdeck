@@ -18,8 +18,8 @@
 //-END
 
 use std::fs::{self, OpenOptions};
-use std::process::Command;
 use std::io::Write;
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::CyberdeckState;
@@ -46,41 +46,52 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // Reusable file writing handlers
     let write_to = |path: &str, content: &str| -> Result<(), String> {
         let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| e.to_string())?;
-        file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
         Ok(())
     };
 
     let overwrite_to = |path: &str, content: &str| -> Result<(), String> {
         let mut file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(path)
-        .map_err(|e| e.to_string())?;
-        file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
         Ok(())
     };
 
     let run_cmd = |cmd: &str, args: &[&str]| -> String {
         Command::new(cmd)
-        .args(args)
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-        .unwrap_or_else(|_| format!("{} not available\n", cmd))
+            .args(args)
+            .output()
+            .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
+            .unwrap_or_else(|_| format!("{} not available\n", cmd))
     };
 
     let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
 
     // 2. Base Header Configuration
-    write_to(&base_f, &format!("⚙️ CYBERDECK: BIOS & SYSTEM INTELLIGENCE\nTimestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n", timestamp))?;
-    write_to(&base_f, &format!("Timestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n", timestamp))?;
+    write_to(
+        &base_f,
+        &format!(
+            "⚙️ CYBERDECK: BIOS & SYSTEM INTELLIGENCE\nTimestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n",
+            timestamp
+        ),
+    )?;
+    write_to(
+        &base_f,
+        &format!("Timestamp: {}\n\n## 🧠 SYSTEM OVERVIEW\n", timestamp),
+    )?;
 
     let uname_all = run_cmd("uname", &["-a"]);
     write_to(&base_f, &uname_all)?;
@@ -153,10 +164,14 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
         for entry in entries.flatten() {
             let name = entry.file_name().into_string().unwrap_or_default();
             if name.starts_with("cpu") && name[3..].chars().all(|c| c.is_ascii_digit()) {
-                let freq_path = format!("/sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq", name);
+                let freq_path =
+                    format!("/sys/devices/system/cpu/{}/cpufreq/scaling_cur_freq", name);
                 if let Ok(raw_freq_str) = fs::read_to_string(freq_path) {
                     if let Ok(raw_freq) = raw_freq_str.trim().parse::<f64>() {
-                        write_to(&base_f, &format!("{}: {:.2} MHz\n", name, raw_freq / 1000.0))?;
+                        write_to(
+                            &base_f,
+                            &format!("{}: {:.2} MHz\n", name, raw_freq / 1000.0),
+                        )?;
                     }
                 }
             }

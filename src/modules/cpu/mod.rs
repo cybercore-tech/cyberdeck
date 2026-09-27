@@ -15,9 +15,9 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
+use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
-use crate::types::CyberdeckState;
 
 /// Executes the CPU diagnostic sweep.
 ///
@@ -34,10 +34,10 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // Helper: Shell execution
     let run_cmd = |cmd: &str, args: &[&str]| -> String {
         Command::new(cmd)
-        .args(args)
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-        .unwrap_or_else(|_| format!("{} not found", cmd))
+            .args(args)
+            .output()
+            .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
+            .unwrap_or_else(|_| format!("{} not found", cmd))
     };
 
     // 1. Topology & Architecture
@@ -61,7 +61,8 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     if let Ok(hwmon) = fs::read_dir("/sys/class/hwmon") {
         for entry in hwmon.flatten() {
             let path = entry.path();
-            let name = fs::read_to_string(path.join("name")).unwrap_or_else(|_| "unknown".to_string());
+            let name =
+                fs::read_to_string(path.join("name")).unwrap_or_else(|_| "unknown".to_string());
             report.push_str(&format!("### Device: {}\n", name.trim()));
 
             // Look for temp inputs
@@ -77,7 +78,10 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
 
     // 4. Power (RAPL - Running Average Power Limit)
     report.push_str("\n## 🔋 Power & Energy (RAPL)\n");
-    let rapl_paths = ["/sys/class/powercap/intel-rapl", "/sys/class/powercap/amd_rapl"];
+    let rapl_paths = [
+        "/sys/class/powercap/intel-rapl",
+        "/sys/class/powercap/amd_rapl",
+    ];
     for rapl_root in rapl_paths {
         if let Ok(entries) = fs::read_dir(rapl_root) {
             for entry in entries.flatten() {

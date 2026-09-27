@@ -14,9 +14,9 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
+use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
-use crate::types::CyberdeckState;
 
 #[derive(Debug, PartialEq)]
 pub enum ServiceCategory {
@@ -48,7 +48,11 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
 
     for svc in services {
         let cat = format!("{:?}", svc.category);
-        let status = if svc.is_active { "✅ Active" } else { "❌ Inactive" };
+        let status = if svc.is_active {
+            "✅ Active"
+        } else {
+            "❌ Inactive"
+        };
         report.push_str(&format!("| `{}` | {} | {} |\n", svc.name, cat, status));
     }
 
@@ -59,22 +63,31 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
 
 fn discover_services() -> Vec<ServiceItem> {
     let output = Command::new("systemctl")
-    .args(["list-units", "--type=service", "--state=running", "--no-pager", "--no-legend"])
-    .output();
+        .args([
+            "list-units",
+            "--type=service",
+            "--state=running",
+            "--no-pager",
+            "--no-legend",
+        ])
+        .output();
 
     match output {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout);
-            stdout.lines().map(|line| {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                let name = parts.first().unwrap_or(&"unknown").to_string();
-                ServiceItem {
-                    category: classify_service(&name),
-                               name,
-                               is_active: true,
-                }
-            }).collect()
-        },
+            stdout
+                .lines()
+                .map(|line| {
+                    let parts: Vec<&str> = line.split_whitespace().collect();
+                    let name = parts.first().unwrap_or(&"unknown").to_string();
+                    ServiceItem {
+                        category: classify_service(&name),
+                        name,
+                        is_active: true,
+                    }
+                })
+                .collect()
+        }
         Err(_) => vec![], // Return empty if systemctl fails/not found
     }
 }

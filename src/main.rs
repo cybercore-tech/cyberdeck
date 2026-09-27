@@ -28,17 +28,20 @@
 //- routine instead of lazy loading it.
 //-END
 
-mod types;
-mod parser;
-mod modules;
 mod dispatcher;
+mod modules;
+mod parser;
 mod routes;
+mod types;
 
+use crate::parser::parse_cyberdeck_script;
 use crate::types::CyberdeckState;
-use axum::{routing::{get, post}, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::parser::parse_cyberdeck_script;
 use tower_http::services::ServeDir; // 1. Added import
 
 //-NOTE: Primary entry point. (src/main.rs)
@@ -50,9 +53,9 @@ async fn main() {
     let state = Arc::new(Mutex::new(CyberdeckState {
         display_active: false,
         active_modules: Vec::new(),
-                                    stealth_mode: false,
-                                    reports_generated: 0,
-                                    execution_log: Vec::new(),
+        stealth_mode: false,
+        reports_generated: 0,
+        execution_log: Vec::new(),
     }));
 
     let env_script = std::env::var("Cyberdeck_ENV").unwrap_or_else(|_| "init_display".to_string());
@@ -64,23 +67,27 @@ async fn main() {
 
     //-ROUTES: Main_Routes (src/main.rs)
     let app = Router::new()
-    .route("/api/themes", get(routes::get_themes_list))
-    .route("/", get(routes::get_index_page))
-    // Updated paths to /cyberdeck/api/
-    .route("/cyberdeck/api/state", get(routes::get_cyberdeck_state))
-    .route("/cyberdeck/api/command", post(routes::post_cyberdeck_command))
-    .route("/cyberdeck/api/action", post(routes::post_cyberdeck_action)) // Add this for the new popup
-    .route("/cyberdeck/api/list", get(routes::list_diagnostics))
-    .fallback_service(ServeDir::new("static"))
-    .with_state(state);
+        .route("/api/themes", get(routes::get_themes_list))
+        .route("/", get(routes::get_index_page))
+        // Updated paths to /cyberdeck/api/
+        .route("/cyberdeck/api/state", get(routes::get_cyberdeck_state))
+        .route(
+            "/cyberdeck/api/command",
+            post(routes::post_cyberdeck_command),
+        )
+        .route("/cyberdeck/api/action", post(routes::post_cyberdeck_action)) // Add this for the new popup
+        .route("/cyberdeck/api/list", get(routes::list_diagnostics))
+        .fallback_service(ServeDir::new("static"))
+        .with_state(state);
     //-END
 
     //-PORTS: Port_IP [127.0.0.1:8080] (src/main.rs)
     let port = std::env::var("CYBERDECK_PORT").unwrap_or_else(|_| "8080".to_string());
-    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port)).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{}", port))
+        .await
+        .unwrap();
 
     println!("[Cyberdeck Core] API active on http://127.0.0.1:{}", port);
     axum::serve(listener, app).await.unwrap();
     //-END
-
 }
