@@ -14,10 +14,10 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
+use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::types::CyberdeckState;
 
 /// Executes the thermal diagnostic suite.
 pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, String> {
@@ -30,11 +30,14 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     fs::create_dir_all(format!("{}/parsed", dir)).map_err(|e| e.to_string())?;
 
     let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
 
-    let mut report = format!("# 🌡️ CYBERDECK: THERMAL INTELLIGENCE\n\nTimestamp: {}\n\n", timestamp);
+    let mut report = format!(
+        "# 🌡️ CYBERDECK: THERMAL INTELLIGENCE\n\nTimestamp: {}\n\n",
+        timestamp
+    );
 
     let mut max_temp: f64 = 0.0;
     let mut sensor_count = 0;
@@ -77,7 +80,8 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
             report.push_str("```\n");
             raw_data = stdout;
         } else {
-            report.push_str("## ⚠️ Warning\nNo thermal sensors detected via sysfs or lm-sensors.\n");
+            report
+                .push_str("## ⚠️ Warning\nNo thermal sensors detected via sysfs or lm-sensors.\n");
         }
     }
 
@@ -89,7 +93,11 @@ pub async fn execute(_state: &CyberdeckState, dir: &str) -> Result<String, Strin
     // Write all artifacts
     fs::write(&base_f, report).map_err(|e| e.to_string())?;
     fs::write(&raw_f, raw_data).map_err(|e| e.to_string())?;
-    fs::write(&parsed_f, format!("Peak: {:.2}°C\nSensors: {}\n", max_temp, sensor_count)).map_err(|e| e.to_string())?;
+    fs::write(
+        &parsed_f,
+        format!("Peak: {:.2}°C\nSensors: {}\n", max_temp, sensor_count),
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(base_f)
 }

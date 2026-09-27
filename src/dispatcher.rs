@@ -6,13 +6,13 @@
 //!
 #![warn(missing_docs)]
 
-use crate::types::{SharedCyberdeckState, CyberdeckCommand};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::process::Command; // Added for shell execution
+use crate::types::{CyberdeckCommand, SharedCyberdeckState};
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH}; // Added for shell execution
 
 use crate::modules::{
-    audio, battery, bios, cpu, dashboard, disks, fan, hardware,
-    memory, motherboard, network, power, services, storage_ai, thermal_ai
+    audio, battery, bios, cpu, dashboard, disks, fan, hardware, memory, motherboard, network,
+    power, services, storage_ai, thermal_ai,
 };
 
 //-NOTE: Dispatcher [Execution Engine] (src/dispatcher.rs)
@@ -22,14 +22,18 @@ use crate::modules::{
 //-END
 
 pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCyberdeckState) {
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
 
     match cmd {
         CyberdeckCommand::InitDisplay => {
             //-CODE: Init_Display
             let mut s = state.lock().await;
             s.display_active = true;
-            s.execution_log.push(format!("[{}] Display system activated.", timestamp));
+            s.execution_log
+                .push(format!("[{}] Display system activated.", timestamp));
             //-END
         }
 
@@ -37,7 +41,10 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
             //-CODE: Set_Stealth_Mode
             let mut s = state.lock().await;
             s.stealth_mode = mode;
-            s.execution_log.push(format!("[{}] Stealth configuration set to: {}", timestamp, mode));
+            s.execution_log.push(format!(
+                "[{}] Stealth configuration set to: {}",
+                timestamp, mode
+            ));
             //-END
         }
         // Generate report
@@ -50,7 +57,10 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
             // Now pass that local variable to the formatter.
             // s is now free to be borrowed mutably by log_event.
 
-            s.execution_log.push(format!("[{}] System Report #{} generated.", timestamp, current_report_num));
+            s.execution_log.push(format!(
+                "[{}] System Report #{} generated.",
+                timestamp, current_report_num
+            ));
             //-END
         }
 
@@ -89,13 +99,24 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
 
             //-NOTE: Execute system command.
             let result = match fmt.as_str() {
-                "zip" => Command::new("zip").args(["-r", &output_path, "./diagnostics"]).status(),
-                "tar" => Command::new("tar").args(["-cvf", &output_path, "./diagnostics"]).status(),
-                "gzip" => Command::new("tar").args(["-czvf", &output_path, "./diagnostics"]).status(),
-                "7z" => Command::new("7z").args(["a", &output_path, "./diagnostics"]).status(),
+                "zip" => Command::new("zip")
+                    .args(["-r", &output_path, "./diagnostics"])
+                    .status(),
+                "tar" => Command::new("tar")
+                    .args(["-cvf", &output_path, "./diagnostics"])
+                    .status(),
+                "gzip" => Command::new("tar")
+                    .args(["-czvf", &output_path, "./diagnostics"])
+                    .status(),
+                "7z" => Command::new("7z")
+                    .args(["a", &output_path, "./diagnostics"])
+                    .status(),
                 _ => {
                     tracing::error!("Unsupported format requested: {}", fmt);
-                    s.execution_log.push(format!("[{}] Error: Unsupported format '{}'", timestamp, fmt));
+                    s.execution_log.push(format!(
+                        "[{}] Error: Unsupported format '{}'",
+                        timestamp, fmt
+                    ));
                     return;
                 }
             };
@@ -105,90 +126,212 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
             match result {
                 Ok(status) if status.success() => {
                     tracing::info!("Archive successful: {}", filename);
-                    s.execution_log.push(format!("[{}] Archive created: {}", timestamp, filename));
+                    s.execution_log
+                        .push(format!("[{}] Archive created: {}", timestamp, filename));
                 }
                 _ => {
                     tracing::error!("Compression command failed.");
-                    s.execution_log.push(format!("[{}] Critical: Compression failed.", timestamp));
+                    s.execution_log
+                        .push(format!("[{}] Critical: Compression failed.", timestamp));
                 }
             }
             //-END
         }
 
-        CyberdeckCommand::RunAudioModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { audio::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunAudioModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    audio::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunBatteryModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { battery::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunBatteryModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    battery::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunBiosModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { bios::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunBiosModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    bios::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunCpuModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { cpu::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunCpuModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    cpu::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunDashboardModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { dashboard::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunDashboardModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    dashboard::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunDisksModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { disks::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunDisksModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    disks::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunFanModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { fan::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunFanModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    fan::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunHardwareModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { hardware::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunHardwareModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    hardware::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunMemoryModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { memory::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunMemoryModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    memory::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunMotherboardModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { motherboard::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunMotherboardModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    motherboard::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunNetworkModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { network::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunNetworkModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    network::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunPowerModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { power::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunPowerModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    power::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunServicesModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { services::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunServicesModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    services::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunStorageAiModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { storage_ai::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunStorageAiModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    storage_ai::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
-        CyberdeckCommand::RunThermalModule(p) => run_module(state, &p, |params| {
-            let params = params.to_string(); let state_arc = state.clone();
-            async move { thermal_ai::execute(&*state_arc.lock().await, &params).await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)) }
-        }).await,
+        CyberdeckCommand::RunThermalModule(p) => {
+            run_module(state, &p, |params| {
+                let params = params.to_string();
+                let state_arc = state.clone();
+                async move {
+                    thermal_ai::execute(&*state_arc.lock().await, &params)
+                        .await
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                }
+            })
+            .await
+        }
 
         // Print warning if not implemented
         _ => println!("Command not implemented"),
@@ -196,9 +339,16 @@ pub async fn execute_cyberdeck_command(cmd: CyberdeckCommand, state: &SharedCybe
 }
 
 async fn run_module<F, Fut>(state: &SharedCyberdeckState, p: &str, exec_fn: F)
-where F: Fn(&str) -> Fut, Fut: std::future::Future<Output = std::io::Result<String>> {
+where
+    F: Fn(&str) -> Fut,
+    Fut: std::future::Future<Output = std::io::Result<String>>,
+{
     match exec_fn(p).await {
         Ok(res) => state.lock().await.execution_log.push(res),
-        Err(e) => state.lock().await.execution_log.push(format!("Error: {}", e)),
+        Err(e) => state
+            .lock()
+            .await
+            .execution_log
+            .push(format!("Error: {}", e)),
     }
 }

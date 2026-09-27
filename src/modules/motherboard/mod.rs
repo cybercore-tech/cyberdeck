@@ -12,9 +12,9 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
+use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
-use crate::types::CyberdeckState;
 
 /// Executes motherboard and BIOS diagnostic suite.
 pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, String> {
@@ -43,7 +43,10 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // 2. Summary Section
     report.push_str("## 📋 Quick Identity\n");
     for line in dmi_board.lines() {
-        if line.contains("Manufacturer:") || line.contains("Product Name:") || line.contains("Serial Number:") {
+        if line.contains("Manufacturer:")
+            || line.contains("Product Name:")
+            || line.contains("Serial Number:")
+        {
             report.push_str(&format!("- **{}**\n", line.trim()));
         }
     }

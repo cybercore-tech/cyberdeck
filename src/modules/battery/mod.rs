@@ -8,10 +8,10 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
-use std::fs::{self, File};
-use std::io::Write; // Needed for the writeln! macro
+use crate::modules::utils::write_header;
 use crate::types::CyberdeckState;
-use crate::modules::utils::write_header; // Assuming your helper is here
+use std::fs::{self, File};
+use std::io::Write; // Needed for the writeln! macro // Assuming your helper is here
 
 /// Executes the battery diagnostic sweep.
 pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, String> {
@@ -28,7 +28,8 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     write_header(&mut file, "ACTIVE").map_err(|e| e.to_string())?;
 
     // 2. Write the Title
-    writeln!(file, "# 🔋 CYBERDECK: SYSTEM POWER & BATTERY TELEMETRY\n").map_err(|e| e.to_string())?;
+    writeln!(file, "# 🔋 CYBERDECK: SYSTEM POWER & BATTERY TELEMETRY\n")
+        .map_err(|e| e.to_string())?;
 
     let power_supply_root = "/sys/class/power_supply";
 
@@ -39,7 +40,9 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
             let path = entry.path();
             let name = entry.file_name().into_string().unwrap_or_default();
 
-            if !path.is_dir() { continue; }
+            if !path.is_dir() {
+                continue;
+            }
             found_any = true;
 
             writeln!(file, "## ⚡ Controller: `{}`", name).map_err(|e| e.to_string())?;
@@ -59,17 +62,26 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
             for (label, filename) in attributes {
                 let attr_path = path.join(filename);
                 if let Ok(content) = fs::read_to_string(attr_path) {
-                    writeln!(file, "- **{}:** {}", label, content.trim()).map_err(|e| e.to_string())?;
+                    writeln!(file, "- **{}:** {}", label, content.trim())
+                        .map_err(|e| e.to_string())?;
                 }
             }
             writeln!(file, "").map_err(|e| e.to_string())?;
         }
 
         if !found_any {
-            writeln!(file, "⚠️ No power controllers found in `/sys/class/power_supply/`.").map_err(|e| e.to_string())?;
+            writeln!(
+                file,
+                "⚠️ No power controllers found in `/sys/class/power_supply/`."
+            )
+            .map_err(|e| e.to_string())?;
         }
     } else {
-        writeln!(file, "❌ Access Denied: Cannot read `/sys/class/power_supply/`.").map_err(|e| e.to_string())?;
+        writeln!(
+            file,
+            "❌ Access Denied: Cannot read `/sys/class/power_supply/`."
+        )
+        .map_err(|e| e.to_string())?;
     }
 
     Ok(report_path)

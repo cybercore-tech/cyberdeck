@@ -24,17 +24,17 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     let dir = params;
     let base_f = format!("{}/hardware.md", dir);
     let timestamp = SystemTime::now()
-    .duration_since(UNIX_EPOCH)
-    .map_err(|e| e.to_string())?
-    .as_secs();
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
 
     // Helper: Shell execution with result capture
     let run_cmd = |cmd: &str, args: &[&str]| -> String {
         Command::new(cmd)
-        .args(args)
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-        .unwrap_or_else(|_| "Unavailable".to_string())
+            .args(args)
+            .output()
+            .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
+            .unwrap_or_else(|_| "Unavailable".to_string())
     };
 
     let mut report = format!("<div style='background:#6a0dad;color:white;padding:6px;'>🖥️ CYBERDECK: HARDWARE CORE REPORT</div>\n\nTimestamp: {}\n\n", timestamp);
@@ -42,7 +42,11 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // 1. DMI / System Board
     report.push_str("## 🏛️ System Board & BIOS\n```text\n");
     let dmi = run_cmd("dmidecode", &["-t", "system,baseboard,bios"]);
-    report.push_str(if dmi.contains("Permission denied") { "Access denied (run as root for full info)\n" } else { &dmi });
+    report.push_str(if dmi.contains("Permission denied") {
+        "Access denied (run as root for full info)\n"
+    } else {
+        &dmi
+    });
     report.push_str("```\n");
 
     // 2. CPU Profile
@@ -61,7 +65,11 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
     // 4. Hardware Tree (lshw fallback)
     report.push_str("\n## ⚙️ Hardware Tree\n```text\n");
     let lshw = run_cmd("lshw", &["-short"]);
-    report.push_str(if lshw.is_empty() || lshw.contains("not found") { "lshw not installed or permission denied" } else { &lshw });
+    report.push_str(if lshw.is_empty() || lshw.contains("not found") {
+        "lshw not installed or permission denied"
+    } else {
+        &lshw
+    });
     report.push_str("\n```\n");
 
     fs::write(&base_f, report).map_err(|e| e.to_string())?;

@@ -13,10 +13,9 @@
 //- Files are saved to /snippets/{code, notes} in markdown (.md) format.
 //-END
 
-
+use crate::types::CyberdeckState;
 use std::fs;
 use std::process::Command;
-use crate::types::CyberdeckState;
 
 /// Executes the live dashboard diagnostic sweep.
 pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, String> {
@@ -26,10 +25,10 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
 
     let run_cmd = |cmd: &str, args: &[&str]| -> String {
         Command::new(cmd)
-        .args(args)
-        .output()
-        .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
-        .unwrap_or_else(|_| "Unavailable".to_string())
+            .args(args)
+            .output()
+            .map(|out| String::from_utf8_lossy(&out.stdout).to_string())
+            .unwrap_or_else(|_| "Unavailable".to_string())
     };
 
     // Live Console Output
@@ -44,10 +43,11 @@ pub async fn execute(_state: &CyberdeckState, params: &str) -> Result<String, St
 
     // 2. CPU
     let lscpu_out = run_cmd("lscpu", &[]);
-    let model = lscpu_out.lines()
-    .find(|l| l.contains("Model name"))
-    .unwrap_or("Unknown CPU")
-    .trim();
+    let model = lscpu_out
+        .lines()
+        .find(|l| l.contains("Model name"))
+        .unwrap_or("Unknown CPU")
+        .trim();
     println!("🔥 CPU: {}", model);
     report.push_str(&format!("## 🔥 CPU\n{}\n\n", model));
 
