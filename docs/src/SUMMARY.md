@@ -62,6 +62,7 @@
 - [Backup Boundaries](blackbox/security-lab/06-backup/boundaries.md)
 - [Incident Response](blackbox/security-lab/07-operations/incident-response.md)
 - [Bitwarden and Blackbox TUI](blackbox/security-lab/08-secrets/bitwarden-tui.md)
+- [SSH Lockdown](blackbox/security-lab/10-ssh/lockdown.md)
 
 # Tasks & To-Do
 - [Database Optimization]( tasks/todo/database_optimization.md)
