@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-99ca5556.js";
+            window.path_to_searchindex_js = "searchindex-ef1756c1.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-78e366b5.js"></script>
+        <script src="toc-9884eca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -547,6 +547,244 @@
 //- MUST replace before production push.
 <span class="boring">}</span></code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="blackbox-documentation"><a class="header" href="#blackbox-documentation">Blackbox documentation</a></h1>
+<p>This section documents the Blackbox workstation’s separated development,
+security research, OSINT, virtualization, and secrets workflows.</p>
+<p>Cyberdeck supplies the documentation structure and rendering conventions. The
+Blackbox implementation details, private storage identifiers, and operational
+scripts remain in the private Blackbox documentation set.</p>
+<h2 id="sections"><a class="header" href="#sections">Sections</a></h2>
+<ul>
+<li><a href="blackbox/security-lab/README.html">SecurityLab</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="blackbox-securitylab"><a class="header" href="#blackbox-securitylab">Blackbox SecurityLab</a></h1>
+<p>SecurityLab is a controlled environment for security research, penetration
+testing, OSINT tooling, static analysis, and disposable experiments.</p>
+<p>The trusted host remains focused on Rust development. Reviewed utilities may
+run in rootless containers. Unknown, privileged, kernel-facing, or input
+capture workloads belong in disposable virtual machines.</p>
+<h2 id="documentation-map"><a class="header" href="#documentation-map">Documentation map</a></h2>
+<ul>
+<li><a href="#securitylab-architecture">Architecture</a></li>
+<li><a href="#securitylab-storage-layout">Storage layout</a></li>
+<li><a href="#rootless-container-policy">Container policy</a></li>
+<li><a href="#disposable-vm-runbook">Virtual-machine runbook</a></li>
+<li><a href="#osint-workflow">OSINT workflow</a></li>
+<li><a href="#script-and-repository-review">Script review</a></li>
+<li><a href="#securitylab-backup-boundaries">Backup boundaries</a></li>
+<li><a href="#securitylab-incident-response">Incident response</a></li>
+<li><a href="#bitwarden-and-the-blackbox-secrets-tui">Bitwarden and Blackbox TUI</a></li>
+</ul>
+<h2 id="trust-rule"><a class="header" href="#trust-rule">Trust rule</a></h2>
+<blockquote>
+<p>If a workload needs host devices, privileged networking, sudo, kernel access,
+input capture, or an unknown binary payload, use a disposable VM.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="securitylab-architecture"><a class="header" href="#securitylab-architecture">SecurityLab architecture</a></h1>
+<h2 id="trust-tiers"><a class="header" href="#trust-tiers">Trust tiers</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Tier</th><th>Environment</th><th>Examples</th><th>Network</th></tr>
+</thead>
+<tbody>
+<tr><td>0</td><td>Trusted host</td><td>Rust, editor, reviewed utilities</td><td>Normal host network</td></tr>
+<tr><td>1</td><td>Rootless container</td><td>Static analysis, reviewed CLI tools</td><td>None by default</td></tr>
+<tr><td>2</td><td>OSINT container</td><td>Approved collection tools</td><td>Explicit user-mode network</td></tr>
+<tr><td>3</td><td>Disposable VM</td><td>Unknown code, exploits, kernel/input work</td><td>NAT or isolated lab network</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="hard-boundaries"><a class="header" href="#hard-boundaries">Hard boundaries</a></h2>
+<p>Lab workloads must not receive the host home directory, SSH agent, browser
+profiles, credential stores, Docker socket, arbitrary <code>/dev</code> access, host PID or
+IPC namespaces, or unrestricted sudo.</p>
+<p>The lab is a place to reduce blast radius, not a reason to weaken the host.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="securitylab-storage-layout"><a class="header" href="#securitylab-storage-layout">SecurityLab storage layout</a></h1>
+<p>The system NVMe is reserved for the operating system and trusted Rust build
+work. The encrypted <code>/home</code> device is reserved for personal data and existing
+home subvolumes. Dedicated encrypted volumes are used for lab repositories,
+container data, disposable VM disks, archives, and recovery templates.</p>
+<p>Use stable filesystem identifiers and encrypted mappings. Never build fstab or
+backup automation around an unqualified <code>/dev/sdX</code> name.</p>
+<p>Large lab datasets and VM images must not be placed in the normal home tree
+just because an empty directory exists there. Mount the dedicated lab volume at
+the intended path first.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rootless-container-policy"><a class="header" href="#rootless-container-policy">Rootless container policy</a></h1>
+<p>Containers are appropriate for reviewed tools and static analysis. They are not
+an adequate boundary for unknown code that requests host devices or elevated
+privileges.</p>
+<h2 id="required-defaults"><a class="header" href="#required-defaults">Required defaults</a></h2>
+<ul>
+<li>Rootless runtime;</li>
+<li>read-only root filesystem;</li>
+<li>all capabilities dropped;</li>
+<li><code>no-new-privileges</code>;</li>
+<li>bounded memory, CPU, and process count;</li>
+<li>isolated temporary filesystem;</li>
+<li>no host Docker socket;</li>
+<li>no home-directory mount;</li>
+<li>no devices unless explicitly documented;</li>
+<li>no network unless explicitly requested.</li>
+</ul>
+<p>Builds and tool execution should happen from a reviewed clone under the lab
+repository directory. Do not install cloned tools globally or add them to the
+host <code>$PATH</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="disposable-vm-runbook"><a class="header" href="#disposable-vm-runbook">Disposable VM runbook</a></h1>
+<p>Use KVM/libvirt for unknown binaries, penetration-testing targets, exploit
+development, kernel or driver work, input-capture tests, and anything requiring
+sudo inside the guest.</p>
+<h2 id="guest-defaults"><a class="header" href="#guest-defaults">Guest defaults</a></h2>
+<ol>
+<li>Start from a known ISO and record its checksum.</li>
+<li>Use a disposable copy-on-write disk.</li>
+<li>Start with NAT or an isolated virtual network.</li>
+<li>Disable shared folders, clipboard, SSH-agent forwarding, and USB passthrough.</li>
+<li>Take a clean snapshot before testing.</li>
+<li>Revert or destroy the guest after the experiment.</li>
+<li>Record the scope, commands, hashes, and outcome.</li>
+</ol>
+<p>Never bridge a test VM onto a network you do not own or have explicit permission
+to test.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="osint-workflow"><a class="header" href="#osint-workflow">OSINT workflow</a></h1>
+<p>OSINT tools use a separate workspace and browser profile from personal
+browsing. Cases should be organized by identifier, not by private account
+name.</p>
+<pre><code class="language-text">SecurityLab/
+├── repos/
+├── cases/
+├── datasets/
+├── reports/
+└── quarantine/
+</code></pre>
+<p>For every case, record the question, authorization, collection time, source
+URLs, hashes of downloaded artifacts, transformation steps, and retention
+decision. Do not mix personal cookies, browser profiles, or cloud credentials
+with collection tooling.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="script-and-repository-review"><a class="header" href="#script-and-repository-review">Script and repository review</a></h1>
+<p>Treat every clone as data until reviewed.</p>
+<h2 id="review-sequence"><a class="header" href="#review-sequence">Review sequence</a></h2>
+<ol>
+<li>Clone without automatically building or executing.</li>
+<li>Inspect the license, origin, recent activity, and dependency files.</li>
+<li>Search for credential access, destructive commands, downloads, persistence,
+device access, shell evaluation, and network listeners.</li>
+<li>Run language-specific static analysis.</li>
+<li>Assign a trust tier.</li>
+<li>Execute only inside the selected container or disposable VM.</li>
+<li>Record the commit hash and review result.</li>
+</ol>
+<p>Anything that captures input, modifies boot or kernel state, asks for broad
+sudo, or attempts to hide its activity goes directly to the VM/quarantine
+workflow.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="securitylab-backup-boundaries"><a class="header" href="#securitylab-backup-boundaries">SecurityLab backup boundaries</a></h1>
+<p>A local mirror is not a complete backup and a backup can preserve unsafe data.</p>
+<h2 id="include-after-review"><a class="header" href="#include-after-review">Include after review</a></h2>
+<ul>
+<li>source repositories and lockfiles;</li>
+<li>lab configuration and container definitions;</li>
+<li>reports, notes, hashes, and approved case exports;</li>
+<li>clean VM templates and recovery documentation.</li>
+</ul>
+<h2 id="exclude-by-default"><a class="header" href="#exclude-by-default">Exclude by default</a></h2>
+<ul>
+<li>container image layers and caches;</li>
+<li>build targets and package caches;</li>
+<li>raw downloads and quarantined binaries;</li>
+<li>browser sessions and cookies;</li>
+<li>mounted plaintext secret folders;</li>
+<li>temporary logs and disposable VM disks.</li>
+</ul>
+<p>Back up encrypted ciphertext for private files. Never back up the mounted
+plaintext secrets view.</p>
+<p>An off-site provider such as MEGA should use historical backup behavior rather
+than a two-way sync for critical data. Keep the provider’s recovery material
+offline and test restores into a temporary directory.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="securitylab-incident-response"><a class="header" href="#securitylab-incident-response">SecurityLab incident response</a></h1>
+<p>If a tool behaves unexpectedly:</p>
+<ol>
+<li>Stop the container or VM.</li>
+<li>Disconnect its lab network.</li>
+<li>Do not open the artifact on the trusted host.</li>
+<li>Record the image, guest snapshot, repository commit, and timestamps.</li>
+<li>Preserve hashes and logs in the case workspace.</li>
+<li>Rotate any credential that may have been exposed.</li>
+<li>Rebuild the disposable environment from a known baseline.</li>
+</ol>
+<p>If the host itself may be affected, stop experimentation, lock the vault,
+disconnect from networks as appropriate, and use an independent recovery path.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="bitwarden-and-the-blackbox-secrets-tui"><a class="header" href="#bitwarden-and-the-blackbox-secrets-tui">Bitwarden and the Blackbox secrets TUI</a></h1>
+<p>Bitwarden remains the source of truth for passwords, TOTP codes, API
+credentials, SSH keys, recovery codes, and license keys. The Blackbox tool is a
+read-only access layer, not a second password manager.</p>
+<h2 id="planned-tui"><a class="header" href="#planned-tui">Planned TUI</a></h2>
+<p><code>blackbox-secrets</code> will provide fuzzy search, username/password/TOTP copy,
+URL opening, timed clipboard clearing, inactivity locking, and an optional
+encrypted-file-vault mount control.</p>
+<p>The first version must not edit, delete, export, or synchronize vault items.
+It must never log secret values, put them in shell history, pass them as command
+arguments, or write them to a local database.</p>
+<h2 id="file-vault-boundary"><a class="header" href="#file-vault-boundary">File vault boundary</a></h2>
+<p>Private documents use an encrypted folder under <code>~/Vaults/Blackbox/</code>. The
+mounted plaintext view is temporary and must never be synchronized or added to
+Git. Bitwarden and the file vault remain separate systems with separate
+recovery procedures.</p>
+<p>See the official <a href="https://bitwarden.com/help/cli/">Bitwarden CLI documentation</a>
+and <a href="https://bitwarden.com/help/ssh-agent/">Bitwarden SSH Agent documentation</a>
+for the underlying supported workflows.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="ssh-lockdown"><a class="header" href="#ssh-lockdown">SSH lockdown</a></h1>
+<p>SSH remains on its current port until the Blackbox migration is complete and
+the replacement access path has been tested. Changing the port early creates a
+needless recovery risk while storage, containers, backups, and credentials are
+still being staged.</p>
+<h2 id="lockdown-sequence"><a class="header" href="#lockdown-sequence">Lockdown sequence</a></h2>
+<ol>
+<li>Confirm a second administrator key or physical recovery path.</li>
+<li>Confirm key-based login from a separate terminal.</li>
+<li>Add a validated <code>sshd_config.d</code> policy with root login disabled, password
+authentication disabled, public-key authentication required, and access
+limited to the intended user or group.</li>
+<li>Disable forwarding features that are not required. Keep an explicit,
+documented exception if an SSH tunnel is genuinely needed.</li>
+<li>Validate with <code>sshd -t</code>, reload the service, and test a new connection.</li>
+<li>Open the replacement port in the firewall before changing the listener.</li>
+<li>Test the replacement port from a second client, then remove the old port.</li>
+</ol>
+<p>Never close the existing port until the replacement connection has completed a
+real login and the recovery path has been tested.</p>
+<h2 id="recommended-policy"><a class="header" href="#recommended-policy">Recommended policy</a></h2>
+<ul>
+<li><code>PermitRootLogin no</code></li>
+<li><code>PasswordAuthentication no</code></li>
+<li><code>KbdInteractiveAuthentication no</code></li>
+<li><code>PubkeyAuthentication yes</code></li>
+<li><code>AuthenticationMethods publickey</code></li>
+<li><code>AllowUsers</code> or <code>AllowGroups</code> limited to the administration account</li>
+<li><code>X11Forwarding no</code></li>
+<li><code>AllowAgentForwarding no</code></li>
+<li><code>MaxAuthTries 3</code></li>
+<li>bounded login grace and client keepalive settings</li>
+</ul>
+<p>Per-key restrictions should be used for automation keys where appropriate,
+including disabling agent, X11, and TCP forwarding. Preserve TTY access only
+for keys that need interactive administration.</p>
+<h2 id="recovery"><a class="header" href="#recovery">Recovery</a></h2>
+<p>Keep one existing administrative session open while validating the new policy.
+If the replacement connection fails, restore the previous drop-in from the
+console or the still-open session, validate it, and reload <code>sshd</code> before
+closing the recovery session.</p>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="database-optimization"><a href="#database-optimization" class="header">Database Optimization</a></h1>
 <h2 id="snippet-database_optimization"><a class="header" href="#snippet-database_optimization">Snippet: Database_Optimization</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -891,22 +1129,6 @@
         <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
         <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
         <script>
